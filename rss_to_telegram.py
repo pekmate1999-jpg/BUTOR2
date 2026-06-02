@@ -6,39 +6,9 @@ import requests
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
 
-print("🚀 Program elindult (Telegram parancsvezérléssel)...")
+print("🚀 Program elindult (Biztonságos Telegram parancsvezérlés)...")
 
-# --- 1. TELEGRAM PARANCSOK ELLENŐRZÉSE ---
-# Megkérdezzük a Telegramot a legutóbbi üzenetekről
-try:
-    updates_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
-    updates = requests.get(updates_url, timeout=10).json()
-    
-    # Alapértelmezett állapot, ha még nincs elmentve semmi
-    statusz_kapcsolo = "TRUE" 
-
-    if updates.get("ok") and updates.get("result"):
-        # Végigmegyünk a legutóbbi üzeneteken (a legfrissebbtől visszafele)
-        for update in reversed(updates["result"]):
-            if "message" in update and "text" in update["message"]:
-                text = update["message"]["text"].strip()
-                user_chat_id = str(update["message"]["chat"]["id"])
-                
-                # Biztonsági ellenőrzés: csak a te CHAT_ID-dról fogadunk el parancsot!
-                if user_chat_id == str(CHAT_ID):
-                    if text == "/status_off":
-                        statusz_kapcsolo = "FALSE"
-                        print("🔕 Felhasználói parancs észlelve: Státusz KIKAPCSOLVA")
-                        break
-                    elif text == "/status_on":
-                        statusz_kapcsolo = "TRUE"
-                        print("🔔 Felhasználói parancs észlelve: Státusz BEKAPCSOLVA")
-                        break
-except Exception as e:
-    print(f"⚠️ Nem sikerült ellenőrizni a Telegram parancsokat: {e}")
-    statusz_kapcsolo = "TRUE" # Hiba esetén biztonságból bekapcsolva hagyjuk
-
-# --- 2. ÁLLAPOTOK BETÖLTÉSE ---
+# --- 1. ÁLLAPOTOK BETÖLTÉSE ---
 try:
     with open("feeds.json", "r", encoding="utf-8") as f:
         feeds = json.load(f)["feeds"]
@@ -52,12 +22,41 @@ try:
 except:
     state = {}
 
-# Ha a state.json-ban már van elmentett kapcsoló állás, és a Telegramon nem küldtél újat, azt használjuk
-if "KULD_STATUSZT" in state and 'text' not in locals():
-    statusz_kapcsolo = state["KULD_STATUSZT"]
-else:
-    # Ha a Telegramon jött új parancs, felülírjuk a state-ben
-    state["KULD_STATUSZT"] = statusz_kapcsolo
+# Alapértelmezett kapcsoló állás a mentett állapotból (ha nincs, akkor TRUE)
+statusz_kapcsolo = state.get("KULD_STATUSZT", "TRUE")
+utolso_update_id = state.get("UTOLSO_UPDATE_ID", 0)
+
+# --- 2. TELEGRAM PARANCSOK OLVASÁSA ÉS NYUGTÁZÁSA (OFFSET) ---
+try:
+    # Csak az új, még nem nyugtázott üzeneteket kérjük le az offset segítségével
+    updates_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates?offset={utolso_update_id + 1}"
+    updates = requests.get(updates_url, timeout=10).json()
+
+    if updates.get("ok") and updates.get("result"):
+        for update in updates["result"]:
+            update_id = update["update_id"]
+            # Elmentjük a legfrissebb üzenet azonosítóját, hogy legközelebb ezt már ugorja át a Telegram
+            if update_id > utolso_update_id:
+                utolso_update_id = update_id
+            
+            if "message" in update and "text" in update["message"]:
+                text = update["message"]["text"].strip()
+                user_chat_id = str(update["message"]["chat"]["id"])
+                
+                # Csak tőled fogadunk el parancsot
+                if user_chat_id == str(CHAT_ID):
+                    if text == "/status_off":
+                        statusz_kapcsolo = "FALSE"
+                        print("🔕 Új parancs feldolgozva: Státusz KIKAPCSOLVA")
+                    elif text == "/status_on":
+                        statusz_kapcsolo = "TRUE"
+                        print("🔔 Új parancs feldolgozva: Státusz BEKAPCSOLVA")
+                        
+        # Elmentjük az új kapcsoló állást és az utolsó olvasott üzenet ID-ját
+        state["KULD_STATUSZT"] = statusz_kapcsolo
+        state["UTOLSO_UPDATE_ID"] = utolso_update_id
+except Exception as e:
+    print(f"⚠️ Nem sikerült ellenőrizni a Telegram parancsokat: {e}")
 
 total_uj_posztok = 0
 
@@ -114,18 +113,12 @@ for feed_url in feeds:
 
     state[feed_url] = feed.entries[0].get("link", "")
 
-# --- 4. KIKÜLDÉS ÉS MENTÉS ---
-# Elmentjük az aktuális állapotokat (a kapcsoló állását is!)
+# --- 4. MENTÉS ÉS KIKÜLDÉS ---
 with open("state.json", "w", encoding="utf-8") as f:
     json.dump(state, f, ensure_ascii=False, indent=2)
 
-# Státuszjelentés kezelése az új tárolt kapcsoló szerint
 if total_uj_posztok == 0:
-    print("ℹ️ Nem volt új poszt egyik csoportban sem.")
+    print(f"ℹ️ Nem volt új poszt. Státuszküldés állása: {statusz_kapcsolo}")
     if statusz_kapcsolo == "TRUE":
-        print("📲 Státuszüzenet küldése...")
-        status_message = "✅ *A bútorfigyelő bot sikeresen lefutott.* Jelenleg nincs új elvihető tárgy. 💤\n\n_Kikapcsoláshoz küldd ezt:_ /status_off"
-        payload = {"chat_id": CHAT_ID, "text": status_message, "parse_mode": "Markdown"}
-        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
-    else:
-        print("🔕 Státuszüzenet elnémítva.")
+        status_message = "✅ *A bútorfigyelő bot sikeresen lefutott.* Jelenleg nincs új elvihető tárgy. 💤\n\n_Némításhoz küldd ezt:_ /status_off"
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data={"chat_id": CHAT_ID, "text": status_message, "parse_mode": "Markdown"})
