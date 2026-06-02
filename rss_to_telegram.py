@@ -140,7 +140,7 @@ if total_uj_posztok == 0:
     # Ha a státusz be van kapcsolva, és most nem történt parancsfelülírás
     if statusz_kapcsolo == "TRUE" and not parancs_erkezett:
         # A te egyedi módosított üzeneted:
-        status_message = "❌*Sikeres Futtatás.* Nincs új tárgy."
+        status_message = "✅*Sikeres Futtatás.✅*❌ Nincs új tárgy.❌"
         payload = {
             "chat_id": CHAT_ID, 
             "text": status_message, 
