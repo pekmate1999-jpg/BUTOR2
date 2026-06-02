@@ -74,13 +74,9 @@ session.headers.update({
     "Accept-Language": "hu-HU,hu;q=0.9,en-US;q=0.8,en;q=0.7"
 })
 
-# Először megnyitjuk a sima mbasic főoldalt, hogy megkapjuk a kezdeti sütiket
 try:
     res = session.get("https://mbasic.facebook.com/", timeout=15)
-    # Ha felugrik a süti elfogadó ablak, elküldjük az elfogadást gombnyomásként
     if "cookie/consent" in res.url or "consent" in res.text:
-        # A Facebook süti elfogadó űrlapja általában a /cookie/consent/ címre posztol
-        # Szimuláljuk az 'Összes elfogadása' (Accept All) gombot
         consent_data = {"accept_only_essential": "false", "submit": "Accept All"}
         session.post("https://mbasic.facebook.com/cookie/consent/", data=consent_data, timeout=15)
 except Exception as e:
@@ -88,7 +84,7 @@ except Exception as e:
 
 # --- 4. KÖZVETLEN FACEBOOK CSOPORT ELLENŐRZÉS ---
 for csoport_url in feeds:
-    # Biztosítjuk, hogy az mbasic URL-t használjuk
+    # Biztosítjuk, hogy az mbasic (mobil) URL-t használjuk a gyorsaság és stabilitás miatt
     url_tisztitott = csoport_url.replace("www.facebook.com", "mbasic.facebook.com")
     print(f"\n🔍 Csoport ellenőrzése: {url_tisztitott}")
     
@@ -99,7 +95,6 @@ for csoport_url in feeds:
         print(f"❌ Nem sikerült megnyitni a csoportot: {e}")
         continue
 
-    # Az mbasic felületen a posztok cikkekként (article) vagy story div-ekként szerepelnek
     posztok = soup.find_all("div", id=lambda x: x and x.startswith("story_story_id"))
     if not posztok:
         posztok = soup.find_all("table", role="article")
@@ -108,7 +103,6 @@ for csoport_url in feeds:
     uj_bejegyzesek = []
 
     for poszt in posztok:
-        # Megkeressük a poszt egyedi permalinkjét
         link_elem = None
         for a in poszt.find_all("a", href=True):
             if "permalink" in a["href"] or "/story.php" in a["href"]:
@@ -117,7 +111,6 @@ for csoport_url in feeds:
         
         if not link_elem: continue
         
-        # Tisztítjuk az URL-t a felesleges követőkódoktól
         nyers_href = link_elem["href"]
         if "story.php" in nyers_href:
             poszt_link = "https://mbasic.facebook.com" + nyers_href.split("&")[0]
@@ -129,11 +122,9 @@ for csoport_url in feeds:
         if poszt_id == utolso_mentett_id:
             break
 
-        # Szöveges tartalom kinyerése
         szoveg_doboz = poszt.find("div")
         poszt_szoveg = "Új hirdetés (Kép vagy link)"
         if szoveg_doboz:
-            # Megkeressük a tényleges szöveges bekezdést a poszton belül
             p_elemek = szoveg_doboz.find_all("p")
             if p_elemek:
                 poszt_szoveg = " ".join([p.get_text(strip=True) for p in p_elemek])
@@ -145,7 +136,6 @@ for csoport_url in feeds:
 
         uj_bejegyzesek.append({"id": poszt_id, "link": poszt_link.replace("mbasic.", "www."), "text": poszt_szoveg})
 
-    # Első futás védelme: ha még üres a state, csak elmentjük a legfrissebbet
     if utolso_mentett_id is None:
         print(f"✨ Csoport sikeresen regisztrálva: {url_tisztitott}")
         if uj_bejegyzesek:
@@ -165,7 +155,6 @@ for csoport_url in feeds:
         payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown", "reply_markup": json.dumps(GOMB_ELRENDEZES)}
         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
 
-    # Elmentjük a legfrissebb poszt ID-ját a következő körhöz
     state[url_tisztitott] = uj_bejegyzesek[0]["id"]
 
 # --- 5. MENTÉS ÉS KIKÜLDÉS ---
@@ -175,6 +164,7 @@ with open("state.json", "w", encoding="utf-8") as f:
 if total_uj_posztok == 0:
     print(f"ℹ️ Nincs új poszt. Státusz állása: {statusz_kapcsolo}")
     if statusz_kapcsolo == "TRUE" and not parancs_erkezett:
-        status_message = "✅*Sikeres futtatás.* ❌Nincs új tárgy.❌"
+        # Pontosan a te általad kért egyedi üzenet formátum:
+        status_message = "❌*Sikeres Futtatás.* Nincs új tárgy."
         payload = {"chat_id": CHAT_ID, "text": status_message, "parse_mode": "Markdown", "reply_markup": json.dumps(GOMB_ELRENDEZES)}
         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
