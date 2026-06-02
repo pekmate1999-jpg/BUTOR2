@@ -175,6 +175,6 @@ with open("state.json", "w", encoding="utf-8") as f:
 if total_uj_posztok == 0:
     print(f"ℹ️ Nincs új poszt. Státusz állása: {statusz_kapcsolo}")
     if statusz_kapcsolo == "TRUE" and not parancs_erkezett:
-        status_message = "✅*Sikeres Futtatás✅.* ❌Nincs új tárgy.❌"
+        status_message = "✅*Sikeres futtatás.* ❌Nincs új tárgy.❌"
         payload = {"chat_id": CHAT_ID, "text": status_message, "parse_mode": "Markdown", "reply_markup": json.dumps(GOMB_ELRENDEZES)}
         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
