@@ -96,9 +96,16 @@ for feed_url in feeds:
     with open("state.json", "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
 
-# Státuszjelentés, ha semmi új nem volt sehol
+# Státuszjelentés, ha semmi új nem volt sehol ÉS a kapcsoló be van kapcsolva
 if total_uj_posztok == 0:
     print("ℹ️ Nem volt új poszt egyik csoportban sem.")
-    status_message = "✅ *A bútorfigyelő bot sikeresen lefutott.* Jelenleg nincs új elvihető tárgy a csoportokban. 💤"
-    payload = {"chat_id": CHAT_ID, "text": status_message, "parse_mode": "Markdown"}
-    requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
+    
+    # Megnézzük, hogy a GitHub beállításaiban be van-e kapcsolva a státuszküldés
+    # Ha az értéke 'TRUE' vagy 'true', akkor elküldi
+    if os.environ.get("KULD_STATUSZT", "FALSE").upper() == "TRUE":
+        print("📲 Státuszüzenet küldése be van kapcsolva...")
+        status_message = "✅ *A bútorfigyelő bot sikeresen lefutott.* Jelenleg nincs új elvihető tárgy a csoportokban. 💤"
+        payload = {"chat_id": CHAT_ID, "text": status_message, "parse_mode": "Markdown"}
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
+    else:
+        print("🔕 Státuszüzenet küldése kikapcsolva (KULD_STATUSZT=FALSE).")
