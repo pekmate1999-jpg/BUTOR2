@@ -38,8 +38,7 @@ for feed_url in feeds:
     link = latest.get("link", "")
     title = latest.get("title", "Új poszt")
     
-    # BIZTONSÁGI JAVÍTÁS: Ha a feed még nincs a state-ben, elmentjük az aktuális posztot alapállapotnak,
-    # hogy a következő futáskor már tudjuk mihez hasonlítani. Ez azonnal kiíródik.
+    # Ha a feed még nincs a state-ben, elmentjük az aktuális posztot alapállapotnak
     if feed_url not in state:
         print(f"✨ Új feed regisztrálva a rendszerbe: {feed_url}")
         state[feed_url] = link
@@ -55,7 +54,7 @@ for feed_url in feeds:
     print("🆕 ÚJ POSZT DETEKTÁLVA! Kép keresése...")
     uj_posztok_szama += 1
 
-    # Kép keresése
+    # Kép keresése az RSS feedben
     image_url = None
     if "media_content" in latest:
         try: image_url = latest.media_content[0]["url"]
@@ -80,7 +79,7 @@ for feed_url in feeds:
         payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
 
-    # Frissítjük az állapotot és AZONNAL elmentjük a fájlba, biztos ami biztos
+    # Frissítjük az állapotot és elmentjük a fájlba
     state[feed_url] = link
     with open("state.json", "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
