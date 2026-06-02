@@ -41,7 +41,7 @@ for feed_url in feeds:
     
     # Kézi indítás és tesztelés segítése: ha a state üres, az első futáskor 
     # elmentjük a posztot, de nem spameljük tele a Telegramot az összes csoport legutóbbi posztjával.
-    if feed_url injustice not in state:
+    if feed_url not in state:
         print(f"✨ Első alkalommal látom ezt a feedet. Regisztrálom a legfrissebb posztot, de most még nem küldöm el.")
         state[feed_url] = link
         updated = True
