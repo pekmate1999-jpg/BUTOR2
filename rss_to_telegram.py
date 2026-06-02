@@ -87,6 +87,6 @@ for feed_url in feeds:
 # Ha lefutott a kör, de nem volt egyetlen új poszt sem az ÖSSZES csoportban
 if uj_posztok_szama == 0:
     print("ℹ️ Nem volt új poszt egyik csoportban sem. Értesítés küldése...")
-    status_message = "✅ *A bútorfigyelő bot sikeresen lefutott.* Jelenleg nincs új elvihető tárgy a csoportokban. 💤"
+    status_message = "✅ *A keresés lefutott.* Nincs új tárgy. 💤"
     payload = {"chat_id": CHAT_ID, "text": status_message, "parse_mode": "Markdown"}
     requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
