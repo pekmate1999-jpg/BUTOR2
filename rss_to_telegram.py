@@ -24,7 +24,6 @@ except:
     state = {}
     print("ℹ️ state.json nem található, újat kezdünk.")
 
-updated = False
 uj_posztok_szama = 0
 
 for feed_url in feeds:
@@ -39,17 +38,18 @@ for feed_url in feeds:
     link = latest.get("link", "")
     title = latest.get("title", "Új poszt")
     
-    # Kézi indítás és tesztelés segítése: ha a state üres, az első futáskor 
-    # elmentjük a posztot, de nem spameljük tele a Telegramot az összes csoport legutóbbi posztjával.
+    # BIZTONSÁGI JAVÍTÁS: Ha a feed még nincs a state-ben, elmentjük az aktuális posztot alapállapotnak,
+    # hogy a következő futáskor már tudjuk mihez hasonlítani. Ez azonnal kiíródik.
     if feed_url not in state:
-        print(f"✨ Első alkalommal látom ezt a feedet. Regisztrálom a legfrissebb posztot, de most még nem küldöm el.")
+        print(f"✨ Új feed regisztrálva a rendszerbe: {feed_url}")
         state[feed_url] = link
-        updated = True
+        with open("state.json", "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=2)
         continue
 
     # Ha ezt a linket már láttuk ennél a feednél, kihagyjuk
     if state.get(feed_url) == link:
-        print("😴 Ezt a posztot már láttuk legutóbb.")
+        print("😴 Ezt a posztot már láttuk legutóbb ebben a csoportban.")
         continue
 
     print("🆕 ÚJ POSZT DETEKTÁLVA! Kép keresése...")
@@ -80,18 +80,14 @@ for feed_url in feeds:
         payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
 
+    # Frissítjük az állapotot és AZONNAL elmentjük a fájlba, biztos ami biztos
     state[feed_url] = link
-    updated = True
-
-# 🔔 ÚJ FUNKCIÓ: Ha lefutott a kör, de nem volt egyetlen új poszt sem
-if uj_posztok_szama == 0 and len(state) > 0:
-    print("ℹ️ Nem volt új poszt. Értesítés küldése a Telegramra...")
-    status_message = "✅ *A bútorfigyelő bot sikeresen lefutott.* jelenleg nincs új elvihető tárgy a csoportokban. 💤"
-    payload = {"chat_id": CHAT_ID, "text": status_message, "parse_mode": "Markdown"}
-    requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
-
-# Ha történt változás, kiírjuk a state.json-ba
-if updated:
     with open("state.json", "w", encoding="utf-8") as f:
         json.dump(state, f, ensure_ascii=False, indent=2)
-    print("\n💾 state.json sikeresen frissítve.")
+
+# Ha lefutott a kör, de nem volt egyetlen új poszt sem az ÖSSZES csoportban
+if uj_posztok_szama == 0:
+    print("ℹ️ Nem volt új poszt egyik csoportban sem. Értesítés küldése...")
+    status_message = "✅ *A bútorfigyelő bot sikeresen lefutott.* Jelenleg nincs új elvihető tárgy a csoportokban. 💤"
+    payload = {"chat_id": CHAT_ID, "text": status_message, "parse_mode": "Markdown"}
+    requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
