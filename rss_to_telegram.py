@@ -120,5 +120,5 @@ with open("state.json", "w", encoding="utf-8") as f:
 if total_uj_posztok == 0:
     print(f"ℹ️ Nem volt új poszt. Státuszküldés állása: {statusz_kapcsolo}")
     if statusz_kapcsolo == "TRUE":
-        status_message = "✅ *A bútorfigyelő bot sikeresen lefutott.* Jelenleg nincs új elvihető tárgy. 💤\n\n_Némításhoz küldd ezt:_ /status_off"
+        status_message = "❌*Sikeres Futtatás.* Nincs új tárgy. 💤\n\n_Némításhoz küldd ezt:_ /status_off"
         requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data={"chat_id": CHAT_ID, "text": status_message, "parse_mode": "Markdown"})
