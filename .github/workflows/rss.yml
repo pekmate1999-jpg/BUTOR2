@@ -30,6 +30,7 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
+          KULD_STATUSZT: ${{ secrets.KULD_STATUSZT || 'FALSE' }}
         run: python rss_to_telegram.py
 
       - name: Commit and Push state
