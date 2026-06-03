@@ -15,6 +15,16 @@ GOMB_ELRENDEZES = {
     "one_time_keyboard": False     
 }
 
+# --- 🚫 TILTOTT KULCSSZAVAK SZŰRÉSE ---
+# Ha a poszt tartalmazza ezen kifejezések bármelyikét, a bot NEM küldi el.
+TILTOTT_SZAVAK = [
+    "üdvözöljük új tagjainkat",
+    "üdvözöljük a csoportban",
+    "csoportszabályzat",
+    "adminisztrátor",
+    "új tagot köszönthetünk"
+]
+
 # --- 1. ÁLLAPOTOK BETÖLTÉSE ---
 try:
     with open("feeds.json", "r", encoding="utf-8") as f:
@@ -90,6 +100,21 @@ for url in feeds:
             nyers_tartalom = entry.get("title", "") + " " + entry.get("summary", "")
             soup = BeautifulSoup(nyers_tartalom, "html.parser")
             
+            # Megtisztítjuk a szöveget a HTML elemektől
+            poszt_szoveg = soup.get_text(separator=" ", strip=True)
+            
+            # --- 🛠️ SZŰRÉS INDÍTÁSA ---
+            poszt_szoveg_kisbetus = poszt_szoveg.lower()
+            szurve = False
+            for tiltott_szo in TILTOTT_SZAVAK:
+                if tiltott_szo in poszt_szoveg_kisbetus:
+                    print(f"🚫 Poszt kiszűrve (tiltott szó: '{tiltott_szo}'): {poszt_link}")
+                    szurve = True
+                    break
+            
+            if szurve:
+                continue # Ha kiszűrtük, ugrunk a következő posztra
+            
             # --- KÉP LINK KINYERÉSE ---
             kep_url = None
             img_tag = soup.find("img")
@@ -98,8 +123,6 @@ for url in feeds:
             elif "media_content" in entry and entry["media_content"]:
                 kep_url = entry["media_content"][0].get("url")
             
-            # Megtisztítjuk a szöveget a HTML elemektől
-            poszt_szoveg = soup.get_text(separator=" ", strip=True)
             if len(poszt_szoveg) > 250: 
                 poszt_szoveg = poszt_szoveg[:250] + "..."
                 
@@ -126,7 +149,6 @@ for url in feeds:
             total_uj_posztok += 1
             message = f"🆕 *Új poszt!*\n\n📝 {p['text']}\n\n🔗 [Megtekintés Facebookon]({p['link']})"
             
-            # Ha találtunk képet, sendPhoto-val küldjük, a szöveget pedig feliratként (caption) adjuk hozzá
             if p["image"]:
                 payload = {
                     "chat_id": CHAT_ID,
