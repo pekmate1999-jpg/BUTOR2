@@ -96,9 +96,10 @@ for url in feeds:
             if poszt_id == utolso_mentett_id:
                 break
                 
-            # Összegyúrjuk a nyers szöveget a HTML tisztításhoz
-            nyers_tartalom = entry.get("title", "") + " " + entry.get("summary", "")
-            soup = BeautifulSoup(nyers_tartalom, "html.parser")
+           # Csak a summary-t használjuk, hogy ne legyen duplázódás. Ha üres, csak akkor kell a title.
+nyers_tartalom = entry.get("summary", "").strip()
+if not nyers_tartalom:
+    nyers_tartalom = entry.get("title", "").strip()
             
             # Megtisztítjuk a szöveget a HTML elemektől
             poszt_szoveg = soup.get_text(separator=" ", strip=True)
