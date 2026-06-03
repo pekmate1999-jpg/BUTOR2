@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHAT_ID = os.environ["CHAT_ID"]
 
-print("🚀 Hibrid Bútorfigyelő Bot indítása...")
+print("🚀 Biztos RSS Bútorfigyelő Bot indítása...")
 
 GOMB_ELRENDEZES = {
     "keyboard": [[{"text": "/status_on"}, {"text": "/status_off"}]],
@@ -67,72 +67,57 @@ if parancs_erkezett:
 
 total_uj_posztok = 0
 
-# --- 3. FACEBOOK SESSIONS ELŐKÉSZÍTÉSE ---
-session = requests.Session()
-session.headers.update({
-    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36"
-})
-
-# --- 4. FORRÁSOK ELLENŐRZÉSE ---
+# --- 3. RSS FORRÁSOK ELLENŐRZÉSE ---
 for url in feeds:
+    print(f"\n📡 RSS Feed ellenőrzése: {url}")
     uj_bejegyzesek = []
     utolso_mentett_id = state.get(url)
 
-    # A: HA RSS FEED
-    if "rss" in url or "xml" in url or "feed" in url:
-        print(f"\n📡 RSS Feed ellenőrzése: {url}")
+    try:
         feed = feedparser.parse(url)
         if not feed.entries:
+            print("ℹ️ A feed jelenleg üres vagy elérhetetlen.")
             continue
             
         for entry in feed.entries:
             poszt_link = entry.get("link", "")
             poszt_id = entry.get("id", poszt_link)
+            
             if poszt_id == utolso_mentett_id:
                 break
-            poszt_szoveg = entry.get("title", "") + " " + entry.get("summary", "")
-            if len(poszt_szoveg) > 250: poszt_szoveg = poszt_szoveg[:250] + "..."
-            uj_bejegyzesek.append({"id": poszt_id, "link": poszt_link, "text": poszt_szoveg})
+                
+            # Összegyúrjuk a nyers szöveget a HTML tisztításhoz
+            nyers_tartalom = entry.get("title", "") + " " + entry.get("summary", "")
+            soup = BeautifulSoup(nyers_tartalom, "html.parser")
+            
+            # --- KÉP LINK KINYERÉSE ---
+            kep_url = None
+            img_tag = soup.find("img")
+            if img_tag and img_tag.get("src"):
+                kep_url = img_tag["src"]
+            elif "media_content" in entry and entry["media_content"]:
+                kep_url = entry["media_content"][0].get("url")
+            
+            # Megtisztítjuk a szöveget a HTML elemektől
+            poszt_szoveg = soup.get_text(separator=" ", strip=True)
+            if len(poszt_szoveg) > 250: 
+                poszt_szoveg = poszt_szoveg[:250] + "..."
+                
+            uj_bejegyzesek.append({
+                "id": poszt_id, 
+                "link": poszt_link, 
+                "text": poszt_szoveg,
+                "image": kep_url
+            })
             
         if utolso_mentett_id is None and feed.entries:
             state[url] = feed.entries[0].get("id", feed.entries[0].get("link", "1"))
+            print(f"✨ Új feed sikeresen regisztrálva.")
             continue
-
-    # B: HA DIRECT FACEBOOK LINK
-    else:
-        url_tisztitott = url.replace("www.facebook.com", "mbasic.facebook.com")
-        print(f"\n🔍 Direkt Facebook ellenőrzése: {url_tisztitott}")
-        try:
-            response = session.get(url_tisztitott, timeout=15)
-            soup = BeautifulSoup(response.text, "html.parser")
-            posztok = soup.find_all("div", id=lambda x: x and x.startswith("story_story_id")) or soup.find_all("table", role="article")
             
-            for poszt in posztok:
-                link_elem = None
-                for a in poszt.find_all("a", href=True):
-                    if "permalink" in a["href"] or "/story.php" in a["href"]:
-                        link_elem = a
-                        break
-                if not link_elem: continue
-                
-                poszt_link = "https://www.facebook.com" + link_elem["href"].split("&")[0].split("?")[0].replace("mbasic.", "www.")
-                poszt_id = poszt_link.split("id=")[-1] if "id=" in poszt_link else poszt_link
-                
-                # ITT VOLT A HIBA - JAVÍTVA:
-                if poszt_id == utolso_mentett_id:
-                    break
-                    
-                szoveg_doboz = poszt.find("div")
-                poszt_szoveg = szoveg_doboz.get_text(strip=True) if szoveg_doboz else "Új hirdetés"
-                if len(poszt_szoveg) > 250: poszt_szoveg = poszt_szoveg[:250] + "..."
-                uj_bejegyzesek.append({"id": poszt_id, "link": poszt_link, "text": poszt_szoveg})
-                
-            if utolso_mentett_id is None:
-                state[url] = uj_bejegyzesek[0]["id"] if uj_bejegyzesek else "1"
-                continue
-        except Exception as e:
-            print(f"❌ Hiba a direkt FB csoportnál: {e}")
-            continue
+    except Exception as e:
+        print(f"❌ Hiba az RSS olvasásakor: {e}")
+        continue
 
     # Új posztok kiküldése
     if uj_bejegyzesek:
@@ -140,11 +125,29 @@ for url in feeds:
         for p in reversed(uj_bejegyzesek):
             total_uj_posztok += 1
             message = f"🆕 *Új poszt!*\n\n📝 {p['text']}\n\n🔗 [Megtekintés Facebookon]({p['link']})"
-            payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown", "reply_markup": json.dumps(GOMB_ELRENDEZES)}
-            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
+            
+            # Ha találtunk képet, sendPhoto-val küldjük, a szöveget pedig feliratként (caption) adjuk hozzá
+            if p["image"]:
+                payload = {
+                    "chat_id": CHAT_ID,
+                    "photo": p["image"],
+                    "caption": message,
+                    "parse_mode": "Markdown",
+                    "reply_markup": json.dumps(GOMB_ELRENDEZES)
+                }
+                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto", data=payload)
+            else:
+                payload = {
+                    "chat_id": CHAT_ID, 
+                    "text": message, 
+                    "parse_mode": "Markdown", 
+                    "reply_markup": json.dumps(GOMB_ELRENDEZES)
+                }
+                requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
+                
         state[url] = uj_bejegyzesek[0]["id"]
 
-# --- 5. MENTÉS ÉS KIKÜLDÉS ---
+# --- 4. MENTÉS ÉS KIKÜLDÉS ---
 with open("state.json", "w", encoding="utf-8") as f:
     json.dump(state, f, ensure_ascii=False, indent=2)
 
