@@ -16,7 +16,6 @@ GOMB_ELRENDEZES = {
 }
 
 # --- 🚫 TILTOTT KULCSSZAVAK SZŰRÉSE ---
-# Ha a poszt tartalmazza ezen kifejezések bármelyikét, a bot NEM küldi el.
 TILTOTT_SZAVAK = [
     "üdvözöljük új tagjainkat",
     "üdvözöljük a csoportban",
@@ -86,7 +85,7 @@ for url in feeds:
     try:
         feed = feedparser.parse(url)
         if not feed.entries:
-            print("ℹ️ A feed jelenleg üres vagy elérhetetlen.")
+            print("ℹ️ A feed jelenleg üres vagy nem feldolgozható.")
             continue
             
         for entry in feed.entries:
@@ -96,27 +95,26 @@ for url in feeds:
             if poszt_id == utolso_mentett_id:
                 break
                 
-           # Csak a summary-t használjuk, hogy ne legyen duplázódás. Ha üres, csak akkor kell a title.
-nyers_tartalom = entry.get("summary", "").strip()
-if not nyers_tartalom:
-    nyers_tartalom = entry.get("title", "").strip()
-            
-            # Megtisztítjuk a szöveget a HTML elemektől
+            # OKOS CÍM/LEÍRÁS KEZELÉS: Csak a summary-t használjuk duplázódás ellen. Ha üres, jöhet a title.
+            nyers_tartalom = entry.get("summary", "").strip()
+            if not nyers_tartalom:
+                nyers_tartalom = entry.get("title", "").strip()
+                
+            soup = BeautifulSoup(nyers_tartalom, "html.parser")
             poszt_szoveg = soup.get_text(separator=" ", strip=True)
             
-            # --- 🛠️ SZŰRÉS INDÍTÁSA ---
+            # 🛠️ SZŰRÉS (Tiltott szavak)
             poszt_szoveg_kisbetus = poszt_szoveg.lower()
             szurve = False
             for tiltott_szo in TILTOTT_SZAVAK:
                 if tiltott_szo in poszt_szoveg_kisbetus:
-                    print(f"🚫 Poszt kiszűrve (tiltott szó: '{tiltott_szo}'): {poszt_link}")
+                    print(f"🚫 Kiszűrve: {poszt_link}")
                     szurve = True
                     break
-            
             if szurve:
-                continue # Ha kiszűrtük, ugrunk a következő posztra
+                continue
             
-            # --- KÉP LINK KINYERÉSE ---
+            # KÉP LINK KINYERÉSE
             kep_url = None
             img_tag = soup.find("img")
             if img_tag and img_tag.get("src"):
