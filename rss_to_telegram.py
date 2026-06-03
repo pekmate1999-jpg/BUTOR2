@@ -88,5 +88,69 @@ for url in feeds:
         for entry in feed.entries:
             poszt_link = entry.get("link", "")
             poszt_id = entry.get("id", poszt_link)
-            if poszt_id == utolso
-        
+            if poszt_id == utolso_mentett_id:
+                break
+            poszt_szoveg = entry.get("title", "") + " " + entry.get("summary", "")
+            if len(poszt_szoveg) > 250: poszt_szoveg = poszt_szoveg[:250] + "..."
+            uj_bejegyzesek.append({"id": poszt_id, "link": poszt_link, "text": poszt_szoveg})
+            
+        if utolso_mentett_id is None and feed.entries:
+            state[url] = feed.entries[0].get("id", feed.entries[0].get("link", "1"))
+            continue
+
+    # B: HA DIRECT FACEBOOK LINK
+    else:
+        url_tisztitott = url.replace("www.facebook.com", "mbasic.facebook.com")
+        print(f"\n🔍 Direkt Facebook ellenőrzése: {url_tisztitott}")
+        try:
+            response = session.get(url_tisztitott, timeout=15)
+            soup = BeautifulSoup(response.text, "html.parser")
+            posztok = soup.find_all("div", id=lambda x: x and x.startswith("story_story_id")) or soup.find_all("table", role="article")
+            
+            for poszt in posztok:
+                link_elem = None
+                for a in poszt.find_all("a", href=True):
+                    if "permalink" in a["href"] or "/story.php" in a["href"]:
+                        link_elem = a
+                        break
+                if not link_elem: continue
+                
+                poszt_link = "https://www.facebook.com" + link_elem["href"].split("&")[0].split("?")[0].replace("mbasic.", "www.")
+                poszt_id = poszt_link.split("id=")[-1] if "id=" in poszt_link else poszt_link
+                
+                # ITT VOLT A HIBA - JAVÍTVA:
+                if poszt_id == utolso_mentett_id:
+                    break
+                    
+                szoveg_doboz = poszt.find("div")
+                poszt_szoveg = szoveg_doboz.get_text(strip=True) if szoveg_doboz else "Új hirdetés"
+                if len(poszt_szoveg) > 250: poszt_szoveg = poszt_szoveg[:250] + "..."
+                uj_bejegyzesek.append({"id": poszt_id, "link": poszt_link, "text": poszt_szoveg})
+                
+            if utolso_mentett_id is None:
+                state[url] = uj_bejegyzesek[0]["id"] if uj_bejegyzesek else "1"
+                continue
+        except Exception as e:
+            print(f"❌ Hiba a direkt FB csoportnál: {e}")
+            continue
+
+    # Új posztok kiküldése
+    if uj_bejegyzesek:
+        print(f"🆕 {len(uj_bejegyzesek)} db ÚJ POSZT! Küldés...")
+        for p in reversed(uj_bejegyzesek):
+            total_uj_posztok += 1
+            message = f"🆕 *Új poszt!*\n\n📝 {p['text']}\n\n🔗 [Megtekintés Facebookon]({p['link']})"
+            payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown", "reply_markup": json.dumps(GOMB_ELRENDEZES)}
+            requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
+        state[url] = uj_bejegyzesek[0]["id"]
+
+# --- 5. MENTÉS ÉS KIKÜLDÉS ---
+with open("state.json", "w", encoding="utf-8") as f:
+    json.dump(state, f, ensure_ascii=False, indent=2)
+
+if total_uj_posztok == 0:
+    print(f"ℹ️ Nincs új poszt. Státusz állása: {statusz_kapcsolo}")
+    if statusz_kapcsolo == "TRUE" and not parancs_erkezett:
+        status_message = "✅*Sikeres Futtatás.*❌ Nincs új tárgy.❌"
+        payload = {"chat_id": CHAT_ID, "text": status_message, "parse_mode": "Markdown", "reply_markup": json.dumps(GOMB_ELRENDEZES)}
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", data=payload)
