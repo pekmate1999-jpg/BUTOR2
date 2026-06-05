@@ -21,7 +21,15 @@ TILTOTT_SZAVAK = [
     "üdvözöljük a csoportban",
     "csoportszabályzat",
     "adminisztrátor",
-    "új tagot köszönthetünk"
+    "új tagot köszönthetünk",
+    # Lomtalanítós/Szállítós kulcsszavak:
+    "lomtalanítás",
+    "hulladékszállítás",
+    "ház kiürítés",
+    "építési törmelék",
+    "sitt elszállítás",
+    "lom, szemét",
+    "országosan",
 ]
 
 # --- 1. ÁLLAPOTOK BETÖLTÉSE ---
