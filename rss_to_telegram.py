@@ -17,12 +17,12 @@ GOMB_ELRENDEZES = {
 
 # --- 🚫 TILTOTT KULCSSZAVAK SZŰRÉSE ---
 TILTOTT_SZAVAK = [
+    # Meglévők...
     "üdvözöljük új tagjainkat",
     "üdvözöljük a csoportban",
     "csoportszabályzat",
     "adminisztrátor",
     "új tagot köszönthetünk",
-    # Lomtalanítós/Szállítós kulcsszavak:
     "lomtalanítás",
     "hulladékszállítás",
     "ház kiürítés",
@@ -30,6 +30,55 @@ TILTOTT_SZAVAK = [
     "sitt elszállítás",
     "lom, szemét",
     "országosan",
+
+    # ÚJ - Épületbontás / általános szállítás
+    "épület bontás",
+    "épületbontás",
+    "veszélyes hulladék",
+    "sitt, szemét",
+    "sitt elszállít",
+
+    # ÚJ - Ingatlan
+    "családi ház eladó",
+    "eladó családi ház",
+    "telek eladó",
+    "eladó telek",
+    "ingatlan eladó",
+    "eladó ingatlan",
+    "felújítást igénylő",
+    "nm-es",         # pl. "95 nm-es"
+
+    # ÚJ - Hulladék / zöldhulladék
+    "zöldhulladék",
+    "kerti hulladék",
+    "faágak, gallyak",
+    "telektisztítás",
+    "hulladékelszállítás",
+
+    # ÚJ - Fuvarozás / költöztetés
+    "fuvarozás",
+    "költöztetés",
+    "tehertaxi",
+    "árufuvarozás",
+    "bútorszállítás",
+    "lomelszállítás",
+    "lomeszállítás",
+    "ház kiürítés",
+    "pince kiürítés",
+    "lomelszállítás",
+
+    # ÚJ - Reklám / akció / hirdetés
+    "akció!",
+    "kuponkód",
+    "kedvezményt adunk",
+    "kedvezmény automatikusan",
+    "használd a",        # "Használd a kuponkódot"
+    "játszótér",
+    "playtime",
+
+    # ÚJ - Nem elérhető tartalom
+    "this content isn't available",
+    "this content is no longer available",
 ]
 
 # --- 1. ÁLLAPOTOK BETÖLTÉSE ---
