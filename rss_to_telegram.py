@@ -54,6 +54,10 @@ TILTOTT_SZAVAK = [
     "faágak, gallyak",
     "telektisztítás",
     "hulladékelszállítás",
+    "fémhulladék",
+    "ócskavas",
+    "felvásárlás",
+    
 
     # ÚJ - Fuvarozás / költöztetés
     "fuvarozás",
